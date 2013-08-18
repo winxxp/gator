@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -8,13 +9,16 @@ import (
 )
 
 func main() {
+	port := flag.Int("port", 1080, "port to listen for connections on")
 
-	port := 1080
-	address := fmt.Sprintf(":%d", port)
+	flag.Parse()
+
+	address := fmt.Sprintf(":%d", *port)
 
 	ln, err := net.Listen("tcp", address)
 	if err != nil {
-		panic(err)
+		log.Printf("Failed to listen on \"%s\" - error: %s", address, err.Error())
+		return
 	}
 
 	log.Printf("Listening for new connections on %s", address)
