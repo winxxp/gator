@@ -152,9 +152,9 @@ func handleConnection(client net.Conn) {
 
 	//Collect the other goroutine's bool from the channel
 	//This is so the channel and goroutine get cleaned up
-	go func(stopChan chan bool) {
+	go func() {
 		<-stopChan
-	}(stopChan)
+	}()
 
 	return
 }
