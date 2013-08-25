@@ -46,8 +46,8 @@ func handleConnection(client net.Conn) {
 		return
 	}
 
-	mr, err := parseMethodRequest(buf)
-	if err != nil {
+	mr := new(MethodRequest)
+	if err := mr.Read(buf); err != nil {
 		log.Printf(err.Error())
 		return
 	}
@@ -62,12 +62,12 @@ func handleConnection(client net.Conn) {
 	}
 
 	if hasAnonAuth {
-		rep := new(methodReply)
+		rep := new(MethodReply)
 		rep.version = 0x05
 		rep.method = 0x00 //No auth required
 		client.Write(rep.bytes())
 	} else {
-		rep := new(methodReply)
+		rep := new(MethodReply)
 		rep.version = 0x05
 		rep.method = 0xFF //No method available
 		client.Write(rep.bytes())
@@ -81,8 +81,8 @@ func handleConnection(client net.Conn) {
 		return
 	}
 
-	sr, err := parseSocksRequest(buf)
-	if err != nil {
+	sr := new(SocksRequest)
+	if err := sr.Read(buf); err != nil {
 		log.Printf(err.Error())
 		return
 	}
@@ -91,7 +91,7 @@ func handleConnection(client net.Conn) {
 
 	if sr.command != 1 {
 		log.Printf("Unimplemented command: %d", sr.command)
-		srep := new(socksReply)
+		srep := new(SocksReply)
 		srep.version = 0x05
 		srep.reply = 0x07 //Command not supported
 		srep.addressType = sr.addressType
@@ -117,7 +117,7 @@ func handleConnection(client net.Conn) {
 	server, err := net.Dial("tcp", address)
 	if err != nil {
 		log.Printf("Failed to connect: %s", err.Error())
-		srep := new(socksReply)
+		srep := new(SocksReply)
 		srep.version = 0x05
 		srep.reply = 0x01 //General error
 		srep.addressType = sr.addressType
@@ -129,7 +129,7 @@ func handleConnection(client net.Conn) {
 	defer server.Close()
 
 	//Success
-	srep := new(socksReply)
+	srep := new(SocksReply)
 	srep.version = 0x05
 	srep.reply = 0x00
 	srep.addressType = sr.addressType
@@ -167,17 +167,17 @@ func (e *gatorError) Error() string {
 	return e.what
 }
 
-type methodRequest struct {
+type MethodRequest struct {
 	version byte
 	methods []byte
 }
 
-type methodReply struct {
+type MethodReply struct {
 	version byte
 	method  byte
 }
 
-type socksRequest struct {
+type SocksRequest struct {
 	version     byte
 	command     byte
 	addressType byte
@@ -186,7 +186,7 @@ type socksRequest struct {
 	port        int
 }
 
-type socksReply struct {
+type SocksReply struct {
 	version     byte
 	reply       byte
 	addressType byte
@@ -195,19 +195,17 @@ type socksReply struct {
 	port        int
 }
 
-func parseMethodRequest(b []byte) (*methodRequest, error) {
-	s := new(methodRequest)
-
+func (s MethodRequest) Read(b []byte) error {
 	if len(b) < 3 || len(b) < int(2+b[1]) {
-		return nil, &gatorError{"method request is too short"}
+		return &gatorError{"method request is too short"}
 	} else if b[0] != 0x05 {
-		return nil, &gatorError{fmt.Sprintf("Invalid version: %d", b[0])}
+		return &gatorError{fmt.Sprintf("Invalid version: %d", b[0])}
 	} else {
 		s.version = b[0]
 	}
 
 	if b[1] == 0 {
-		return nil, &gatorError{"Invalid number of methods: 0"}
+		return &gatorError{"Invalid number of methods: 0"}
 	} else {
 		s.methods = make([]byte, b[1])
 	}
@@ -215,28 +213,26 @@ func parseMethodRequest(b []byte) (*methodRequest, error) {
 	methodBytes := b[2 : 2+b[1]]
 	copy(s.methods, methodBytes)
 
-	return s, nil
+	return nil
 }
 
-func (s *methodReply) bytes() []byte {
+func (s MethodReply) bytes() []byte {
 	return []byte{s.version, s.method}
 }
 
-func parseSocksRequest(b []byte) (*socksRequest, error) {
-	s := new(socksRequest)
-
+func (s SocksRequest) Read(b []byte) error {
 	if len(b) < 5 {
-		return nil, &gatorError{"socks request is too short"}
+		return &gatorError{"socks request is too short"}
 	}
 
 	if b[0] != 0x05 {
-		return s, &gatorError{fmt.Sprintf("Invalid version: %d", b[0])}
+		return &gatorError{fmt.Sprintf("Invalid version: %d", b[0])}
 	} else {
 		s.version = b[0]
 	}
 
 	if b[1] < 1 || b[1] > 3 {
-		return s, &gatorError{fmt.Sprintf("Invalid command: %d", b[1])}
+		return &gatorError{fmt.Sprintf("Invalid command: %d", b[1])}
 	} else {
 		s.command = b[1]
 	}
@@ -244,7 +240,7 @@ func parseSocksRequest(b []byte) (*socksRequest, error) {
 	//b[2] == 0x00 and is reserved
 
 	if b[3] == 0 || b[3] == 2 || b[3] > 4 {
-		return s, &gatorError{fmt.Sprintf("Invalid address type: %d", b[3])}
+		return &gatorError{fmt.Sprintf("Invalid address type: %d", b[3])}
 	} else {
 		s.addressType = b[3]
 	}
@@ -253,20 +249,20 @@ func parseSocksRequest(b []byte) (*socksRequest, error) {
 
 	if s.addressType == 1 {
 		if len(b) < 10 {
-			return nil, &gatorError{"socks request is too short"}
+			return &gatorError{"socks request is too short"}
 		}
 		s.address = b[4:8]
 		offset = 8
 	} else if s.addressType == 4 {
 		if len(b) < 22 {
-			return nil, &gatorError{"socks request is too short"}
+			return &gatorError{"socks request is too short"}
 		}
 		s.address = b[4:20]
 		offset = 20
 	} else if s.addressType == 3 {
 		domainLength := b[4]
 		if len(b) < int(7)+int(domainLength) {
-			return nil, &gatorError{"socks request is too short"}
+			return &gatorError{"socks request is too short"}
 		}
 		s.domain = string(b[5 : 5+domainLength])
 		offset = int(5) + int(domainLength)
@@ -274,10 +270,10 @@ func parseSocksRequest(b []byte) (*socksRequest, error) {
 
 	s.port = (int(b[offset]) << 8) + int(b[offset+1])
 
-	return s, nil
+	return nil
 }
 
-func (s *socksReply) bytes() []byte {
+func (s SocksReply) bytes() []byte {
 	var b []byte
 	if s.addressType == 0 || s.addressType == 1 {
 		b = make([]byte, 0, 10)
