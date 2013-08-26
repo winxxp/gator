@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -159,14 +160,6 @@ func handleConnection(client net.Conn) {
 	return
 }
 
-type gatorError struct {
-	what string
-}
-
-func (e *gatorError) Error() string {
-	return e.what
-}
-
 type MethodRequest struct {
 	version byte
 	methods []byte
@@ -197,15 +190,15 @@ type SocksReply struct {
 
 func (s MethodRequest) Read(b []byte) error {
 	if len(b) < 3 || len(b) < int(2+b[1]) {
-		return &gatorError{"method request is too short"}
+		return errors.New("method request is too short")
 	} else if b[0] != 0x05 {
-		return &gatorError{fmt.Sprintf("Invalid version: %d", b[0])}
+		return errors.New(fmt.Sprintf("Invalid version: %d", b[0]))
 	} else {
 		s.version = b[0]
 	}
 
 	if b[1] == 0 {
-		return &gatorError{"Invalid number of methods: 0"}
+		return errors.New("Invalid number of methods: 0")
 	} else {
 		s.methods = make([]byte, b[1])
 	}
@@ -222,17 +215,17 @@ func (s MethodReply) bytes() []byte {
 
 func (s SocksRequest) Read(b []byte) error {
 	if len(b) < 5 {
-		return &gatorError{"socks request is too short"}
+		return errors.New("socks request is too short")
 	}
 
 	if b[0] != 0x05 {
-		return &gatorError{fmt.Sprintf("Invalid version: %d", b[0])}
+		return errors.New(fmt.Sprintf("Invalid version: %d", b[0]))
 	} else {
 		s.version = b[0]
 	}
 
 	if b[1] < 1 || b[1] > 3 {
-		return &gatorError{fmt.Sprintf("Invalid command: %d", b[1])}
+		return errors.New(fmt.Sprintf("Invalid command: %d", b[1]))
 	} else {
 		s.command = b[1]
 	}
@@ -240,7 +233,7 @@ func (s SocksRequest) Read(b []byte) error {
 	//b[2] == 0x00 and is reserved
 
 	if b[3] == 0 || b[3] == 2 || b[3] > 4 {
-		return &gatorError{fmt.Sprintf("Invalid address type: %d", b[3])}
+		return errors.New(fmt.Sprintf("Invalid address type: %d", b[3]))
 	} else {
 		s.addressType = b[3]
 	}
@@ -249,20 +242,20 @@ func (s SocksRequest) Read(b []byte) error {
 
 	if s.addressType == 1 {
 		if len(b) < 10 {
-			return &gatorError{"socks request is too short"}
+			return errors.New("socks request is too short")
 		}
 		s.address = b[4:8]
 		offset = 8
 	} else if s.addressType == 4 {
 		if len(b) < 22 {
-			return &gatorError{"socks request is too short"}
+			return errors.New("socks request is too short")
 		}
 		s.address = b[4:20]
 		offset = 20
 	} else if s.addressType == 3 {
 		domainLength := b[4]
 		if len(b) < int(7)+int(domainLength) {
-			return &gatorError{"socks request is too short"}
+			return errors.New("socks request is too short")
 		}
 		s.domain = string(b[5 : 5+domainLength])
 		offset = int(5) + int(domainLength)
