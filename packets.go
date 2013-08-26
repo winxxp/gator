@@ -1,5 +1,12 @@
 package main
 
+import (
+	"errors"
+	"fmt"
+	"io"
+	"net"
+)
+
 type MethodRequest struct {
 	version byte
 	methods []byte
@@ -31,21 +38,23 @@ type SocksReply struct {
 func (s MethodRequest) ReadBinary(r io.Reader) error {
 	b := make([]byte, 2)
 	if n, _ := r.Read(b); n != 2 {
-		return errors.New("method request is too short")
+		return errors.New("MethodRequest packet is too short")
 	}
 
 	if s.version = b[0]; s.version != 0x05 {
-		return errors.New(fmt.Sprintf("Invalid version: %d", b[0]))
+		return fmt.Errorf("Invalid version: %d", s.version)
 	}
 
-	if b[1] == 0 {
+	numMethods := int(b[1])
+
+	if numMethods == 0 {
 		return errors.New("Invalid number of methods: 0")
 	} else {
-		s.methods = make([]byte, b[1])
+		s.methods = make([]byte, numMethods)
 	}
 
-	if _, err := r.Read(s.methods); err != nil {
-		return fmt.Errorf("Error reading MethodRequest: %v", err)
+	if n, _ := r.Read(s.methods); n != numMethods {
+		return errors.New("MethodRequest packet is too short")
 	}
 
 	return nil
@@ -63,13 +72,8 @@ func (s MethodReply) WriteBinary(w io.Writer) error {
 func (s SocksRequest) ReadBinary(r io.Reader) error {
 	b := make([]byte, 4)
 
-	n, err := r.Read(b)
-	if n < 4 {
+	if n, _ := r.Read(b); n != 4 {
 		return errors.New("SocksRequest input too short")
-	}
-
-	if err != nil {
-		return fmt.Errorf("Error reading SocksRequest: %v", err)
 	}
 
 	if s.version = b[0]; s.version != 0x05 {
@@ -86,24 +90,16 @@ func (s SocksRequest) ReadBinary(r io.Reader) error {
 
 	if s.addressType == 1 {
 		address := make([]byte, 4)
-		if n, err = r.Read(address); n < 4 {
+		if n, _ := r.Read(address); n != 4 {
 			return errors.New("SocksRequest address is too short")
-		}
-
-		if err != nil {
-			return fmt.Errorf("Error reading SockRequest.Address: %v", err)
 		}
 
 		s.address = address
 
 	} else if s.addressType == 4 {
 		address := make([]byte, 16)
-		if n, err = r.Read(address); n < 16 {
+		if n, _ := r.Read(address); n != 16 {
 			return errors.New("SocksRequest address is too short")
-		}
-
-		if err != nil {
-			return fmt.Errorf("Error reading SockRequest.Address: %v", err)
 		}
 
 		s.address = address
@@ -111,25 +107,27 @@ func (s SocksRequest) ReadBinary(r io.Reader) error {
 	} else if s.addressType == 3 {
 		length := make([]byte, 1)
 
-		if _, err = r.Read(length); err != nil {
-			return fmt.Errorf("Error reading SockRequest domain length: %v", err)
+		if n, _ := r.Read(length); n != 1 {
+			return errors.New("SocksRequest domain length missing")
 		}
 
-		domain := make([]byte, int(length[0]))
-		n, err = r.Read(domain)
-		if n < int(length[0]) {
+		domainLength := int(length[0])
+
+		domain := make([]byte, domainLength)
+		if n, _ := r.Read(domain); n < domainLength {
 			return errors.New("SocksRequest domain too short")
 		}
 
 		s.domain = string(domain)
-
-		if err != nil {
-			return fmt.Errorf("Error reading SockRequest domain: %v", err)
-		}
 	}
 
-	//TODO
-	//s.port = (int(b[offset]) << 8) + int(b[offset+1])
+	portBytes := make([]byte, 2)
+	if n, _ := r.Read(portBytes); n != 2 {
+		return errors.New("SocksRequest missing port")
+	}
+
+	//Horrible, but it works
+	s.port = (int(portBytes[0]) << 8) + int(portBytes[1])
 
 	return nil
 }
