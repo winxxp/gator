@@ -121,7 +121,8 @@ func handleConnection(client net.Conn) {
 	srep.port = sr.port
 	srep.WriteBinary(client)
 
-	stopChan := make(chan bool)
+	//Buffered so that the other goroutine doesn't deadlock
+	stopChan := make(chan bool, 1)
 	go func() {
 		io.Copy(client, server)
 		stopChan <- true
@@ -131,13 +132,8 @@ func handleConnection(client net.Conn) {
 		stopChan <- true
 	}()
 
+	//Wait for either of the copies to stop
 	<-stopChan
-
-	//Collect the other goroutine's bool from the channel
-	//This is so the channel and goroutine get cleaned up
-	go func() {
-		<-stopChan
-	}()
 
 	return
 }
