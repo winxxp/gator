@@ -35,7 +35,7 @@ type SocksReply struct {
 	port        int
 }
 
-func (s MethodRequest) ReadBinary(r io.Reader) error {
+func (s *MethodRequest) ReadBinary(r io.Reader) error {
 	b := make([]byte, 2)
 	if n, _ := r.Read(b); n != 2 {
 		return errors.New("MethodRequest packet is too short")
@@ -60,7 +60,7 @@ func (s MethodRequest) ReadBinary(r io.Reader) error {
 	return nil
 }
 
-func (s MethodReply) WriteBinary(w io.Writer) error {
+func (s *MethodReply) WriteBinary(w io.Writer) error {
 	out := []byte{s.version, s.method}
 	if _, err := w.Write(out); err != nil {
 		return fmt.Errorf("Error writing MethodReply: %v", err)
@@ -69,7 +69,7 @@ func (s MethodReply) WriteBinary(w io.Writer) error {
 	return nil
 }
 
-func (s SocksRequest) ReadBinary(r io.Reader) error {
+func (s *SocksRequest) ReadBinary(r io.Reader) error {
 	b := make([]byte, 4)
 
 	if n, _ := r.Read(b); n != 4 {
@@ -132,7 +132,7 @@ func (s SocksRequest) ReadBinary(r io.Reader) error {
 	return nil
 }
 
-func (s SocksReply) WriteBinary(w io.Writer) error {
+func (s *SocksReply) WriteBinary(w io.Writer) error {
 	var b []byte
 	if s.addressType == 0 || s.addressType == 1 {
 		b = make([]byte, 0, 10)
