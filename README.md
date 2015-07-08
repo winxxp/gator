@@ -9,6 +9,7 @@ into something useful, such as a HTTP filtering system (adblocking perhaps)
 or if some kind of SSL auth were implemented, a privacy helper.
 
 SOCK4 http://ftp.icm.edu.pl/packages/socks/socks4/SOCKS4.protocol
+
 SOCK5 http://www.rfc-editor.org/rfc/rfc1928.txt
 
 License
