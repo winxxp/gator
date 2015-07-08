@@ -620,10 +620,10 @@ func (s *Sock5) Proxy(client net.Conn) error {
 		srep.port = sr.port
 		srep.WriteBinary(client)
 	}
-	defer server.Close()
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %s", err.Error())
 	}
+	defer server.Close()
 
 	//Success
 	srep := new(Socks5Reply)
