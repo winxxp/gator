@@ -610,30 +610,27 @@ func (s *Sock5) Proxy(client net.Conn) error {
 		return errors.New("Unknown address type in socks request struct")
 	}
 
-	server, err := net.Dial("tcp", address)
-	if err != nil {
-		srep := new(Socks5Reply)
-		srep.version = 0x05
-		srep.reply = 0x01 //General error
-		srep.addressType = sr.addressType
-		srep.address = sr.address
-		srep.port = sr.port
-		srep.WriteBinary(client)
-	}
-	defer server.Close()
-	if err != nil {
-		return fmt.Errorf("Failed to connect: %s", err.Error())
+	srep := Socks5Reply{
+		version:     0x05,
+		reply:       0x00, //General error
+		addressType: sr.addressType,
+		address:     sr.address,
+		port:        sr.port,
 	}
 
-	//Success
-	srep := new(Socks5Reply)
-	srep.version = 0x05
-	srep.reply = 0x00
-	srep.addressType = sr.addressType
-	srep.address = sr.address
-	srep.domain = sr.domain
-	srep.port = sr.port
-	srep.WriteBinary(client)
+	server, err := net.Dial("tcp", address)
+	if err != nil {
+		srep.reply = 0x01 //General error
+	}
+	e := srep.WriteBinary(client)
+
+	if srep.reply == 0x01 {
+		return fmt.Errorf("Dial: %s", err.Error())
+	}
+	defer server.Close()
+	if e != nil {
+		return fmt.Errorf("respond: %s", e)
+	}
 
 	//Buffered so that the other goroutine doesn't deadlock
 	stopChan := make(chan bool, 1)

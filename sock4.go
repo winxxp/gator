@@ -243,11 +243,11 @@ func (s *Sock4) Proxy(client net.Conn) error {
 	e := srep.WriteBinary(client)
 
 	if err != nil {
-		return fmt.Errorf("Failed to connect: %s", err.Error())
+		return fmt.Errorf("Dial: %s", err.Error())
 	}
 	defer server.Close()
 	if e != nil {
-		return fmt.Errorf("respond connect cmd  failed: ", e)
+		return fmt.Errorf("respond: %s", e)
 	}
 
 	//Buffered so that the other goroutine doesn't deadlock
