@@ -29,6 +29,7 @@ func main() {
 			log.Printf("Failed to accept connection: %s", err.Error())
 			continue
 		}
+		log.Println(c.RemoteAddr())
 		go handleConnection(c)
 	}
 }
