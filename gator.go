@@ -29,7 +29,6 @@ func main() {
 			log.Printf("Failed to accept connection: %s", err.Error())
 			continue
 		}
-		log.Println(c.RemoteAddr())
 		go handleConnection(c)
 	}
 }
@@ -46,7 +45,7 @@ func handleConnection(client net.Conn) {
 	hasAnonAuth := false
 
 	for _, method := range mr.methods {
-		log.Printf("method: %d", method)
+
 		if method == 0x00 {
 			hasAnonAuth = true
 		}
@@ -71,7 +70,7 @@ func handleConnection(client net.Conn) {
 		return
 	}
 
-	log.Printf("cmd: %d\nport: %d\nip: %d\ndomain: %s", sr.command, sr.port, sr.address, sr.domain)
+	log.Printf("cmd: %d, port: %d, ip: %d, domain: %s\n", sr.command, sr.port, sr.address, sr.domain)
 
 	if sr.command != 1 {
 		log.Printf("Unimplemented command: %d", sr.command)
