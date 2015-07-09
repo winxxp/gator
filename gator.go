@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	port := flag.Int("port", 80, "port to listen for connections on")
+	port := flag.Int("port", 10080, "port to listen for connections on")
 
 	flag.Parse()
 
